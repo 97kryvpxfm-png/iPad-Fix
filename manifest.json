@@ -1,0 +1,10 @@
+{
+    "display_name": "iPad Viewport Fix",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "",
+    "author": "",
+    "version": "1.0.0"
+}
