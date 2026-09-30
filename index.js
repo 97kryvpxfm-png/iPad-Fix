@@ -1,50 +1,37 @@
-const isEditing = () => {
-    const el = document.activeElement;
-    return el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
-};
-
-const isShifted = () => {
+// Экранная клавиатура открыта? (с физической клавиатурой высота почти не меняется)
+const keyboardOpen = () => {
     const vv = window.visualViewport;
-    return window.scrollX !== 0 || window.scrollY !== 0
-        || document.documentElement.scrollTop !== 0
-        || document.body.scrollTop !== 0
-        || (vv && (Math.round(vv.offsetTop) !== 0 || Math.round(vv.pageTop) !== 0));
+    return vv && vv.height < window.innerHeight - 150;
 };
 
-const reset = () => {
-    if (isEditing() || !isShifted()) return;
+const toTop = () => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+};
+
+// Safari иногда рисует страницу сдвинутой, хотя сам считает, что сдвига нет.
+// Небольшой «толчок» заставляет его перерисовать всё на месте.
+const nudge = () => {
+    if (keyboardOpen()) return;
     window.scrollTo(0, 1);
-    requestAnimationFrame(() => {
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-    });
+    requestAnimationFrame(toTop);
 };
 
-const later = () => {
-    setTimeout(reset, 150);
-    setTimeout(reset, 600);
+const nudgeLater = () => {
+    setTimeout(nudge, 100);
+    setTimeout(nudge, 400);
+    setTimeout(nudge, 900);
 };
 
-document.addEventListener('focusout', later);
-document.addEventListener('touchend', later, { passive: true });
-window.addEventListener('scroll', later, { passive: true });
-window.visualViewport?.addEventListener('resize', later);
-window.visualViewport?.addEventListener('scroll', later);
+// Не даём странице сдвигаться, пока нет экранной клавиатуры
+window.addEventListener('scroll', () => {
+    if ((window.scrollX !== 0 || window.scrollY !== 0) && !keyboardOpen()) toTop();
+}, { passive: true });
 
-const dbg = document.createElement('div');
-dbg.style.cssText = 'position:fixed;top:40%;left:40%;z-index:99999;background:rgba(0,0,0,.8);color:#0f0;font:12px monospace;padding:6px;pointer-events:none;white-space:pre';
-document.body.appendChild(dbg);
-setInterval(() => {
-    const vv = window.visualViewport;
-    dbg.textContent = `v2
-scrollY ${window.scrollY}
-html ${document.documentElement.scrollTop}
-body ${document.body.scrollTop}
-vvTop ${vv?.offsetTop}
-vvPageTop ${vv?.pageTop}
-vvH ${vv?.height}
-innerH ${innerHeight}
-sheld ${document.getElementById('sheld')?.scrollTop}`;
-}, 300);
-
+// Толкаем после начала и конца редактирования
+document.addEventListener('click', (e) => {
+    if (e.target.closest('.mes_edit, .mes_edit_done, .mes_edit_cancel, .mes_edit_delete')) nudgeLater();
+}, true);
+document.addEventListener('focusout', nudgeLater);
+window.visualViewport?.addEventListener('resize', nudgeLater);
