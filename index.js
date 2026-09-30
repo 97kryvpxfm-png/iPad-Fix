@@ -3,15 +3,31 @@ const isEditing = () => {
     return el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
 };
 
-const reset = () => {
-    if (isEditing()) return;
-    if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
-    if (document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
-    if (document.body.scrollTop) document.body.scrollTop = 0;
+const isShifted = () => {
+    const vv = window.visualViewport;
+    return window.scrollX !== 0 || window.scrollY !== 0
+        || document.documentElement.scrollTop !== 0
+        || document.body.scrollTop !== 0
+        || (vv && (Math.round(vv.offsetTop) !== 0 || Math.round(vv.pageTop) !== 0));
 };
 
-const later = () => setTimeout(reset, 150);
+const reset = () => {
+    if (isEditing() || !isShifted()) return;
+    window.scrollTo(0, 1);
+    requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    });
+};
+
+const later = () => {
+    setTimeout(reset, 150);
+    setTimeout(reset, 600);
+};
 
 document.addEventListener('focusout', later);
+document.addEventListener('touchend', later, { passive: true });
 window.addEventListener('scroll', later, { passive: true });
 window.visualViewport?.addEventListener('resize', later);
+window.visualViewport?.addEventListener('scroll', later);
