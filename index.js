@@ -31,3 +31,20 @@ document.addEventListener('touchend', later, { passive: true });
 window.addEventListener('scroll', later, { passive: true });
 window.visualViewport?.addEventListener('resize', later);
 window.visualViewport?.addEventListener('scroll', later);
+
+const dbg = document.createElement('div');
+dbg.style.cssText = 'position:fixed;top:40%;left:40%;z-index:99999;background:rgba(0,0,0,.8);color:#0f0;font:12px monospace;padding:6px;pointer-events:none;white-space:pre';
+document.body.appendChild(dbg);
+setInterval(() => {
+    const vv = window.visualViewport;
+    dbg.textContent = `v2
+scrollY ${window.scrollY}
+html ${document.documentElement.scrollTop}
+body ${document.body.scrollTop}
+vvTop ${vv?.offsetTop}
+vvPageTop ${vv?.pageTop}
+vvH ${vv?.height}
+innerH ${innerHeight}
+sheld ${document.getElementById('sheld')?.scrollTop}`;
+}, 300);
+
