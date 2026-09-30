@@ -9,22 +9,38 @@ if (isIPad) {
         return vv && vv.height < window.innerHeight - 150;
     };
 
+    // Запоминаем, пользуешься ли ты физической клавиатурой
+    let hwKeyboard = false;
+    try { hwKeyboard = localStorage.getItem('ipadfix_hw') === '1'; } catch {}
+    const setHw = (value) => {
+        hwKeyboard = value;
+        try { localStorage.setItem('ipadfix_hw', value ? '1' : '0'); } catch {}
+    };
+
+    const isTextArea = (el) => el instanceof HTMLTextAreaElement;
+    const isEditArea = (el) => isTextArea(el) && el.classList.contains('edit_textarea');
+
+    // Печать без экранной клавиатуры = подключена физическая
+    document.addEventListener('keydown', (e) => {
+        if (isTextArea(e.target) && !keyboardOpen()) setHw(true);
+    }, true);
+
     const toTop = () => {
         window.scrollTo(0, 0);
         document.documentElement.scrollTop = 0;
         document.body.scrollTop = 0;
     };
 
-    // 1. Не даём Safari прокручивать страницу, когда открывается поле редактирования
+    // С физической клавиатурой не даём Safari прокручивать страницу при открытии редактирования
     const nativeFocus = HTMLElement.prototype.focus;
     HTMLElement.prototype.focus = function (options) {
-        if (this instanceof HTMLTextAreaElement && this.classList.contains('edit_textarea')) {
+        if (hwKeyboard && isEditArea(this)) {
             return nativeFocus.call(this, { ...options, preventScroll: true });
         }
         return nativeFocus.call(this, options);
     };
 
-    // 2. Заставляем Safari по-настоящему перерисовать страницу на месте
+    // Заставляем Safari по-настоящему перерисовать страницу на месте
     const meta = document.querySelector('meta[name="viewport"]');
     const refresh = () => {
         if (keyboardOpen()) return;
@@ -46,15 +62,28 @@ if (isIPad) {
         setTimeout(refresh, 900);
     };
 
-    // Не даём странице сдвигаться, пока нет экранной клавиатуры
+    // С физической клавиатурой вообще не даём странице сдвигаться
     window.addEventListener('scroll', () => {
-        if ((window.scrollX !== 0 || window.scrollY !== 0) && !keyboardOpen()) toTop();
+        if (hwKeyboard && !keyboardOpen() && (window.scrollX !== 0 || window.scrollY !== 0)) toTop();
     }, { passive: true });
 
-    // После начала и конца редактирования
+    // Появилась экранная клавиатура: значит, физической нет, отдаём управление Safari
+    window.visualViewport?.addEventListener('resize', () => {
+        if (keyboardOpen()) {
+            if (hwKeyboard) {
+                setHw(false);
+                const el = document.activeElement;
+                if (isTextArea(el)) el.scrollIntoView({ block: 'end' });
+            }
+        } else {
+            refreshLater();
+        }
+    });
+
+    // Начало и конец редактирования
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.mes_edit, .mes_edit_done, .mes_edit_cancel, .mes_edit_delete')) refreshLater();
+        if (e.target.closest('.mes_edit_done, .mes_edit_cancel, .mes_edit_delete')) refreshLater();
+        else if (hwKeyboard && e.target.closest('.mes_edit')) refreshLater();
     }, true);
     document.addEventListener('focusout', refreshLater);
-    window.visualViewport?.addEventListener('resize', refreshLater);
 }
